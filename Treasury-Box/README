@@ -1,0 +1,183 @@
+# Chronos Vault - Time-Locked STX Escrow Smart Contract
+
+A comprehensive and secure smart contract system for creating time-locked STX vaults on the Stacks blockchain. Perfect for savings goals, vesting schedules, delayed payments, and secure escrow services.
+
+##  Features
+### Core Functionality
+- **Time-Locked Vaults**: Create secure vaults with customizable lock periods
+- **Multi-Vault Management**: Each user can manage up to 100 vaults simultaneously  
+- **Flexible Withdrawals**: Support for both complete and partial withdrawals
+- **Portfolio Tracking**: Comprehensive user portfolio management and analytics
+- **Activity Logging**: Complete audit trail for all vault operations
+
+### Security Features
+- **Access Control**: Vault owners have exclusive access to their funds
+- **Emergency Pause**: Contract-wide pause functionality for security incidents
+- **Input Validation**: Comprehensive validation of all user inputs
+- **Time-Lock Enforcement**: Strict enforcement of lock periods
+- **Balance Verification**: Multi-layer balance and authorization checks
+
+### Economic Features
+- **Service Fees**: Sustainable 1 STX creation fee model
+- **Minimum Lock Period**: 24-hour minimum lock period (144 blocks)
+- **Gas Optimization**: Efficient data structures and operations
+- **Scalability**: Support for high-volume vault operations
+
+##  Contract Specifications
+### Constants & Limits
+| Parameter | Value | Description |
+|-----------|-------|-------------|
+| Maximum Vaults per User | 100 | Vault limit per account |
+| Minimum Lock Duration | 144 blocks | ~24 hours at 10 min/block |
+| Vault Creation Fee | 1,000,000 µSTX | 1 STX service fee |
+| Maximum Vault ID | 999,999,999 | Upper limit for vault identifiers |
+| Description Max Length | 50 characters | Vault label character limit |
+
+### Error Codes
+| Code | Error | Description |
+|------|-------|-------------|
+| 1001 | ERR-UNAUTHORIZED-ACCESS-DENIED | User lacks required permissions |
+| 1002 | ERR-VAULT-NOT-FOUND-IN-SYSTEM | Vault ID doesn't exist |
+| 1003 | ERR-VAULT-STILL-TIME-LOCKED | Lock period hasn't expired |
+| 1004 | ERR-INSUFFICIENT-STX-BALANCE | Insufficient STX balance |
+| 1005 | ERR-INVALID-DEPOSIT-AMOUNT | Invalid deposit amount (≤0) |
+| 1006 | ERR-INVALID-LOCK-DURATION | Lock duration below minimum |
+| 1007 | ERR-VAULT-CREATION-LIMIT-EXCEEDED | Too many vaults for user |
+| 1008 | ERR-ZERO-BALANCE-OPERATION | Operation on empty vault |
+| 1009 | ERR-WITHDRAWAL-EXCEEDS-BALANCE | Withdrawal > vault balance |
+| 1010 | ERR-INVALID-VAULT-IDENTIFIER | Invalid vault ID |
+| 1011 | ERR-INVALID-STRING-INPUT | Invalid string input |
+| 1012 | ERR-CONTRACT-PAUSED | Contract in emergency pause |
+| 1013 | ERR-VAULT-LIMIT-EXCEEDED | System vault limit exceeded |
+| 1014 | ERR-ACTIVITY-LOG-CREATION-FAILED | Failed to log activity |
+
+##  Usage Guide
+### Creating a Vault
+
+```clarity
+;; Create a vault with 10 STX locked for 1000 blocks
+(contract-call? .chronos-vault create-time-locked-vault 
+  u10000000      ;; 10 STX in µSTX
+  u1000          ;; 1000 blocks lock duration
+  "Savings Goal" ;; Vault description
+)
+```
+
+### Adding Funds to Existing Vault
+
+```clarity
+;; Add 5 STX to vault #1
+(contract-call? .chronos-vault add-funds-to-vault 
+  u1        ;; Vault ID
+  u5000000  ;; 5 STX in µSTX
+)
+```
+
+### Withdrawing Funds (After Lock Expires)
+
+```clarity
+;; Withdraw complete balance from vault #1
+(contract-call? .chronos-vault withdraw-complete-balance u1)
+
+;; Withdraw 3 STX from vault #1
+(contract-call? .chronos-vault withdraw-partial-amount 
+  u1        ;; Vault ID
+  u3000000  ;; 3 STX in µSTX
+)
+```
+
+### Updating Vault Description
+
+```clarity
+;; Update vault label
+(contract-call? .chronos-vault update-vault-label 
+  u1                    ;; Vault ID
+  "Emergency Fund 2024" ;; New description
+)
+```
+
+##  Query Functions
+### Vault Information
+
+```clarity
+;; Get vault details
+(contract-call? .chronos-vault get-vault-details u1)
+
+;; Check if vault is unlocked
+(contract-call? .chronos-vault is-vault-unlocked u1)
+
+;; Get remaining lock time in blocks
+(contract-call? .chronos-vault get-remaining-lock-time u1)
+```
+
+### User Portfolio
+
+```clarity
+;; Get user's complete portfolio
+(contract-call? .chronos-vault get-user-portfolio 'SP1234...)
+
+;; Get total locked STX for user
+(contract-call? .chronos-vault get-user-total-locked-stx 'SP1234...)
+```
+
+### Contract Analytics
+
+```clarity
+;; Get contract-wide statistics
+(contract-call? .chronos-vault get-contract-analytics)
+
+;; Get contract configuration
+(contract-call? .chronos-vault get-contract-config)
+```
+
+### Activity Logging
+
+```clarity
+;; Get specific vault activity
+(contract-call? .chronos-vault get-vault-activity u1 u1)
+
+;; Get next activity index
+(contract-call? .chronos-vault get-vault-next-activity-index u1)
+```
+
+##  Data Structures
+### Vault Record
+```clarity
+{
+  vault-owner: principal,           ;; Vault owner address
+  locked-amount: uint,              ;; STX amount locked (µSTX)
+  unlock-block-height: uint,        ;; Block when funds unlock
+  creation-block-height: uint,      ;; Creation timestamp
+  last-activity-block: uint,        ;; Last activity timestamp
+  vault-label: (string-ascii 50),   ;; User-defined description
+  vault-status: (string-ascii 20)   ;; "ACTIVE" or "EMPTIED"
+}
+```
+
+### User Portfolio
+```clarity
+{
+  owned-vault-ids: (list 100 uint), ;; List of owned vault IDs
+  total-locked-amount: uint,        ;; Total STX locked by user
+  active-vault-count: uint,         ;; Number of active vaults
+  last-portfolio-update: uint       ;; Last update timestamp
+}
+```
+
+### Activity Log Entry
+```clarity
+{
+  action-type: (string-ascii 30),        ;; Type of action performed
+  transaction-amount: uint,              ;; Amount involved in µSTX
+  block-timestamp: uint,                 ;; Block height of action
+  initiator-address: principal,          ;; Address that initiated action
+  additional-context: (string-ascii 100) ;; Additional context info
+}
+```
+
+##  Administrative Functions
+### Emergency Pause (Deployer Only)
+```clarity
+;; Toggle contract pause state
+(contract-call? .chronos-vault toggle-contract-pause)
+```
